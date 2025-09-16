@@ -25,21 +25,12 @@ const GameRound: React.FC<GameRoundProps> = ({ teamId }) => {
   const [nextClue, setNextClue] = useState('');
   const [nextClueType, setNextClueType] = useState<'text' | 'image'>('text');
   const [canProceed, setCanProceed] = useState(false);
-  const [countdown, setCountdown] = useState(0);
 
   useEffect(() => {
     loadCurrentRound();
   }, [teamId]);
 
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (countdown > 0) {
-      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
-    } else if (countdown === 0 && canProceed) {
-      setCanProceed(false);
-    }
-    return () => clearTimeout(timer);
-  }, [countdown, canProceed]);
+  // No countdown; proceed button appears immediately after success
 
   const loadCurrentRound = async () => {
     try {
@@ -70,21 +61,23 @@ const GameRound: React.FC<GameRoundProps> = ({ teamId }) => {
       );
 
       if (response.success) {
-        setSuccessMessage(response.message);
-        setNextClue(response.nextClue || '');
-        setNextClueType(response.nextClueType || 'text');
-        setShowSuccess(true);
-        setUserInput('');
-        
-        if (response.isLastStep) {
-          setCountdown(10);
-          setCanProceed(true);
+        // If final round (round 5) last step is correct, redirect to external link immediately
+        if (response.isLastStep && round.roundNumber === 5) {
+          window.location.href = 'https://example.org/completed';
+          return;
         }
-        
-        // Reload round data to get updated step
-        setTimeout(() => {
-          loadCurrentRound();
-        }, 1000);
+
+        // Only show success popup for last step, and provide Next Round CTA
+        if (response.isLastStep) {
+          setSuccessMessage('You are good to go!');
+          setCanProceed(true);
+          setShowSuccess(true);
+        } else {
+          // For intermediate steps, just reveal additional clue without opening success popup
+          setNextClue(response.nextClue || '');
+          setNextClueType(response.nextClueType || 'text');
+        }
+        setUserInput('');
       } else {
         setErrorMessage(response.message);
         setShowError(true);
@@ -98,19 +91,10 @@ const GameRound: React.FC<GameRoundProps> = ({ teamId }) => {
   };
 
   const handleNextRound = async () => {
-    try {
-      const response = await gameAPI.moveToNextRound(teamId);
-      if (response.success) {
-        if (response.isGameComplete) {
-          // Redirect to completion page
-          window.location.href = 'https://example.com/completion';
-        } else {
-          loadCurrentRound();
-        }
-      }
-    } catch (error) {
-      console.error('Error moving to next round:', error);
-    }
+    // Backend already advanced round on final step success. Just refresh UI.
+    setShowSuccess(false);
+    setCanProceed(false);
+    await loadCurrentRound();
   };
 
   const handleHintClick = () => {
@@ -231,24 +215,7 @@ const GameRound: React.FC<GameRoundProps> = ({ teamId }) => {
           </button>
         </form>
 
-        {canProceed && countdown > 0 && (
-          <div className="next-round-section">
-            <div className="countdown">
-              <p>Great job! You can proceed to the next round in {countdown} seconds.</p>
-            </div>
-          </div>
-        )}
-
-        {canProceed && countdown === 0 && (
-          <div className="next-round-section">
-            <button 
-              className="next-round-button"
-              onClick={handleNextRound}
-            >
-              {round.roundNumber >= 4 ? 'Complete Challenge' : 'Go to Next Round'}
-            </button>
-          </div>
-        )}
+        {/* Next-round inline section removed; action moved to success modal */}
       </div>
 
       <HintModal 
@@ -262,6 +229,7 @@ const GameRound: React.FC<GameRoundProps> = ({ teamId }) => {
         isOpen={showSuccess}
         onClose={() => setShowSuccess(false)}
         message={successMessage}
+        onProceed={canProceed ? handleNextRound : undefined}
       />
 
       <ErrorModal 

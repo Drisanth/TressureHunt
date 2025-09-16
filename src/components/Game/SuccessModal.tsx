@@ -5,9 +5,10 @@ interface SuccessModalProps {
   isOpen: boolean;
   onClose: () => void;
   message: string;
+  onProceed?: () => void; // when provided, show "Go to Next Round" button
 }
 
-const SuccessModal: React.FC<SuccessModalProps> = ({ isOpen, onClose, message }) => {
+const SuccessModal: React.FC<SuccessModalProps> = ({ isOpen, onClose, message, onProceed }) => {
   if (!isOpen) return null;
 
   return (
@@ -24,9 +25,9 @@ const SuccessModal: React.FC<SuccessModalProps> = ({ isOpen, onClose, message })
           </div>
         </div>
 
-        <div className="modal-footer">
-          <button className="success-button" onClick={onClose}>
-            Continue
+        <div className="modal-footer" style={{ display: 'flex', gap: 12 }}>
+          <button className="success-button" onClick={onProceed || onClose}>
+            Go to Next Round
           </button>
         </div>
       </div>
